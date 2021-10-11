@@ -1,0 +1,59 @@
+FROM multiarch/qemu-user-static:x86_64-aarch64 as qemu
+FROM jjm2473/jellyfin-server-rtk:v10.7-1 as server
+FROM jellyfin/jellyfin:10.7.7-arm64 as web
+
+FROM arm64v8/debian:buster-slim
+COPY --from=qemu /usr/bin/qemu-aarch64-static /usr/bin
+# Default environment variables for the Jellyfin invocation
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT="1" \
+    LC_ALL="en_US.UTF-8" \
+    LANG="en_US.UTF-8" \
+    LANGUAGE="en_US:en" \
+    JELLYFIN_MEDIA_DIR="/media" \
+    JELLYFIN_DATA_DIR="/config" \
+    JELLYFIN_CACHE_DIR="/cache" \
+    JELLYFIN_CONFIG_DIR="/config/config" \
+    JELLYFIN_LOG_DIR="/config/log" \
+    JELLYFIN_WEB_DIR="/jellyfin/jellyfin-web" \
+    JELLYFIN_FFMPEG="/usr/lib/jellyfin-ffmpeg/ffmpeg"
+
+# Install dependencies:
+#   libomxil-bellagio0: needed for OpenMax IL
+RUN apt-get update \
+ && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates gnupg wget apt-transport-https \
+ && wget -O - https://repo.jellyfin.org/jellyfin_team.gpg.key | apt-key add - \
+ && echo 'deb [arch=arm64] https://repo.jellyfin.org/debian buster main' > /etc/apt/sources.list.d/jellyfin.list \
+ && apt-get update \
+ && apt-get install --no-install-recommends --no-install-suggests -y libomxil-bellagio0 libomxil-bellagio-bin jellyfin-ffmpeg openssl locales libfontconfig1 libfreetype6 \
+ && apt-get remove gnupg wget apt-transport-https -y \
+ && apt-get clean autoclean -y \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p ${JELLYFIN_MEDIA_DIR} ${JELLYFIN_DATA_DIR} ${JELLYFIN_CACHE_DIR} \
+ && chmod 777 ${JELLYFIN_MEDIA_DIR} ${JELLYFIN_DATA_DIR} ${JELLYFIN_CACHE_DIR} \
+ && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
+
+COPY --from=server /jellyfin /jellyfin
+COPY --from=web /jellyfin/jellyfin-web /jellyfin/jellyfin-web
+
+# realtek patch
+ENV JELLYFIN_FFMPEG="/usr/bin/ffmpeg"
+
+RUN apt update && apt install --no-install-suggests -y software-properties-common && \
+    apt-add-repository non-free && apt update
+RUN apt install -y libxcb-xfixes0 libxcb-shape0 libsndio7.0 libjack-jackd2-0
+RUN apt install -y libfdk-aac1 libmp3lame0 libopus0
+
+ADD realtek/openmax.tar.gz /
+ADD realtek/libffmpeg-full.tar.gz /
+ADD realtek/ffprobe.tar.gz /
+
+RUN mv /usr/bin/ffprobe /usr/bin/ffprobe.rtk && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg.img
+
+ADD realtek/ffmpeg.tar.gz /
+
+EXPOSE 8096
+VOLUME ${JELLYFIN_MEDIA_DIR} ${JELLYFIN_DATA_DIR} ${JELLYFIN_CACHE_DIR}
+ENTRYPOINT [ "/jellyfin/jellyfin" ]
