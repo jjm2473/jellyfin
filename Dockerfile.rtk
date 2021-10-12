@@ -39,10 +39,13 @@ COPY --from=web /jellyfin/jellyfin-web /jellyfin/jellyfin-web
 # realtek patch
 ENV JELLYFIN_FFMPEG="/usr/bin/ffmpeg"
 
-RUN apt update && apt install --no-install-suggests -y software-properties-common && \
-    apt-add-repository non-free && apt update
-RUN apt install -y libxcb-xfixes0 libxcb-shape0 libsndio7.0 libjack-jackd2-0
-RUN apt install -y libfdk-aac1 libmp3lame0 libopus0
+RUN apt update && apt install --no-install-suggests -y software-properties-common \
+    && apt-add-repository non-free && apt update \
+    && apt install -y libxcb-xfixes0 libxcb-shape0 libsndio7.0 libjack-jackd2-0 \
+    && apt install -y libfdk-aac1 libmp3lame0 libopus0 \
+    && apt-get clean autoclean -y \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 ADD realtek/openmax.tar.gz /
 ADD realtek/libffmpeg-full.tar.gz /
