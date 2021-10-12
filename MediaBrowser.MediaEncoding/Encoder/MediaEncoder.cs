@@ -573,6 +573,8 @@ namespace MediaBrowser.MediaEncoding.Encoder
             // This filter chain may have adverse effects on recorded tv thumbnails if ar changes during presentation ex. commercials @ diff ar
             var vf = string.Empty;
 
+            var decoder = string.Empty;
+
             if (threedFormat.HasValue)
             {
                 switch (threedFormat.Value)
@@ -599,6 +601,12 @@ namespace MediaBrowser.MediaEncoding.Encoder
             }
 
             var mapArg = imageStreamIndex.HasValue ? (" -map 0:v:" + imageStreamIndex.Value.ToString(CultureInfo.InvariantCulture)) : string.Empty;
+
+            var h264hi10p = string.Equals("h264", videoStream?.Codec, StringComparison.OrdinalIgnoreCase) && IsColorDepth10(videoStream);
+            if (h264hi10p)
+            {
+                decoder = string.Format(CultureInfo.InvariantCulture, "-codec:v:{0} h264", imageStreamIndex.HasValue ? imageStreamIndex.Value.ToString(CultureInfo.InvariantCulture) : "0");
+            }
 
             var enableHdrExtraction = allowTonemap && string.Equals(videoStream?.VideoRange, "HDR", StringComparison.OrdinalIgnoreCase);
             if (enableHdrExtraction)
@@ -631,7 +639,7 @@ namespace MediaBrowser.MediaEncoding.Encoder
                 }
             }
 
-            var args = string.Format(CultureInfo.InvariantCulture, "-i {0}{3} -threads {4} -v quiet -vframes 1 {2} -f image2 \"{1}\"", inputPath, tempExtractPath, vf, mapArg, threads);
+            var args = string.Format(CultureInfo.InvariantCulture, "{5} -i {0}{3} -threads {4} -v quiet -vframes 1 {2} -f image2 \"{1}\"", inputPath, tempExtractPath, vf, mapArg, threads, decoder);
 
             var probeSizeArgument = string.Empty;
             var analyzeDurationArgument = string.Empty;
@@ -699,7 +707,7 @@ namespace MediaBrowser.MediaEncoding.Encoder
                     var timeoutMs = _configurationManager.Configuration.ImageExtractionTimeoutMs;
                     if (timeoutMs <= 0)
                     {
-                        timeoutMs = enableHdrExtraction ? DefaultHdrImageExtractionTimeout : DefaultSdrImageExtractionTimeout;
+                        timeoutMs = (enableHdrExtraction || h264hi10p) ? DefaultHdrImageExtractionTimeout : DefaultSdrImageExtractionTimeout;
                     }
 
                     ranToCompletion = await process.WaitForExitAsync(TimeSpan.FromMilliseconds(timeoutMs)).ConfigureAwait(false);
@@ -728,6 +736,42 @@ namespace MediaBrowser.MediaEncoding.Encoder
 
                 return tempExtractPath;
             }
+        }
+
+        private static bool IsColorDepth10(MediaStream videoStream)
+        {
+            var result = false;
+
+            if (videoStream != null)
+            {
+                if (!string.IsNullOrEmpty(videoStream.PixelFormat))
+                {
+                    result = videoStream.PixelFormat.Contains("p10", StringComparison.OrdinalIgnoreCase);
+                    if (result)
+                    {
+                        return true;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(videoStream.Profile))
+                {
+                    result = videoStream.Profile.Contains("Main 10", StringComparison.OrdinalIgnoreCase)
+                        || videoStream.Profile.Contains("High 10", StringComparison.OrdinalIgnoreCase)
+                        || videoStream.Profile.Contains("Profile 2", StringComparison.OrdinalIgnoreCase);
+                    if (result)
+                    {
+                        return true;
+                    }
+                }
+
+                result = (videoStream.BitDepth ?? 8) == 10;
+                if (result)
+                {
+                    return true;
+                }
+            }
+
+            return result;
         }
 
         public string GetTimeParameter(long ticks)
