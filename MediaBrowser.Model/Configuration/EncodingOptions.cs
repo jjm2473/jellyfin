@@ -9,7 +9,8 @@ namespace MediaBrowser.Model.Configuration
     {
         public EncodingOptions()
         {
-            EnableFallbackFont = false;
+            EnableFallbackFont = true;
+            FallbackFontPath = "/jellyfin/jellyfin-web/assets/fonts";
             DownMixAudioBoost = 2;
             MaxMuxingQueueSize = 2048;
             EnableThrottling = false;
