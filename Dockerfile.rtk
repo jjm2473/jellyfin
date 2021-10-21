@@ -1,5 +1,5 @@
 FROM multiarch/qemu-user-static:x86_64-aarch64 as qemu
-FROM jjm2473/jellyfin-server-rtk:v10.7-1 as server
+FROM jjm2473/jellyfin-server-rtk:v10.7-3 as server
 FROM jellyfin/jellyfin:10.7.7-arm64 as web
 
 FROM arm64v8/debian:buster-slim
@@ -43,9 +43,20 @@ RUN apt update && apt install --no-install-suggests -y software-properties-commo
     && apt-add-repository non-free && apt update \
     && apt install -y libxcb-xfixes0 libxcb-shape0 libsndio7.0 libjack-jackd2-0 \
     && apt install -y libfdk-aac1 libmp3lame0 libopus0 \
+    && apt install -y fonts-noto-cjk \
     && apt-get clean autoclean -y \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
+
+# add fonts for ASS/SSA client render
+RUN apt-get update \
+ && apt-get install --no-install-recommends --no-install-suggests -y wget \
+ && mkdir -p /jellyfin/jellyfin-web/assets/fonts \
+ && wget -O - https://github.com/jjm2473/rtd1296_prebuilt_target/releases/download/v1.0/noto.tar.gz | tar -xz -C /jellyfin/jellyfin-web/assets/fonts \
+ && apt-get remove wget -y \
+ && apt-get clean autoclean -y \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
 
 ADD realtek/openmax.tar.gz /
 ADD realtek/libffmpeg-full.tar.gz /
