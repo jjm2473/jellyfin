@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION=v10.7-3
+VERSION=v10.8-1
 
 [ -f realtek/Dockerfile ] || ( mkdir realtek && curl -L https://github.com/jjm2473/rtd1296_prebuilt_target/releases/download/v1.0/jellyfin-rtk-docker_10-7.tar | tar -x -C realtek ) || exit 1
 

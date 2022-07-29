@@ -1,43 +1,49 @@
+
+FROM jjm2473/jellyfin-server-rtk:v10.8-1 as server
+FROM jellyfin/jellyfin:10.8.1-arm64 as web
+
+# Requires binfm_misc registration
+# https://github.com/multiarch/qemu-user-static#binfmt_misc-register
+
 FROM multiarch/qemu-user-static:x86_64-aarch64 as qemu
-FROM jjm2473/jellyfin-server-rtk:v10.7-3 as server
-FROM jellyfin/jellyfin:10.7.7-arm64 as web
+FROM arm64v8/debian:stable-slim as app
 
-FROM arm64v8/debian:buster-slim
+# https://askubuntu.com/questions/972516/debian-frontend-environment-variable
+ARG DEBIAN_FRONTEND="noninteractive"
+# http://stackoverflow.com/questions/48162574/ddg#49462622
+ARG APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+# https://github.com/NVIDIA/nvidia-docker/wiki/Installation-(Native-GPU-Support)
+ENV NVIDIA_DRIVER_CAPABILITIES="compute,video,utility"
+
 COPY --from=qemu /usr/bin/qemu-aarch64-static /usr/bin
-# Default environment variables for the Jellyfin invocation
-ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT="1" \
-    LC_ALL="en_US.UTF-8" \
-    LANG="en_US.UTF-8" \
-    LANGUAGE="en_US:en" \
-    JELLYFIN_MEDIA_DIR="/media" \
-    JELLYFIN_DATA_DIR="/config" \
-    JELLYFIN_CACHE_DIR="/cache" \
-    JELLYFIN_CONFIG_DIR="/config/config" \
-    JELLYFIN_LOG_DIR="/config/log" \
-    JELLYFIN_WEB_DIR="/jellyfin/jellyfin-web" \
-    JELLYFIN_FFMPEG="/usr/lib/jellyfin-ffmpeg/ffmpeg"
 
-# Install dependencies:
-#   libomxil-bellagio0: needed for OpenMax IL
-RUN apt-get update \
- && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates gnupg wget apt-transport-https \
- && wget -O - https://repo.jellyfin.org/jellyfin_team.gpg.key | apt-key add - \
- && echo 'deb [arch=arm64] https://repo.jellyfin.org/debian buster main' > /etc/apt/sources.list.d/jellyfin.list \
- && apt-get update \
- && apt-get install --no-install-recommends --no-install-suggests -y libomxil-bellagio0 libomxil-bellagio-bin jellyfin-ffmpeg openssl locales libfontconfig1 libfreetype6 \
- && apt-get remove gnupg wget apt-transport-https -y \
+# curl: healcheck
+RUN apt-get update && apt-get install --no-install-recommends --no-install-suggests -y \
+ ffmpeg \
+ libssl-dev \
+ ca-certificates \
+ libfontconfig1 \
+ libfreetype6 \
+ libomxil-bellagio0 \
+ libomxil-bellagio-bin \
+ locales \
+ curl \
  && apt-get clean autoclean -y \
  && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/* \
- && mkdir -p ${JELLYFIN_MEDIA_DIR} ${JELLYFIN_DATA_DIR} ${JELLYFIN_CACHE_DIR} \
- && chmod 777 ${JELLYFIN_MEDIA_DIR} ${JELLYFIN_DATA_DIR} ${JELLYFIN_CACHE_DIR} \
+ && mkdir -p /cache /config /media \
+ && chmod 777 /cache /config /media \
  && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
+
+# ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+ENV LC_ALL en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+
+ENV HEALTHCHECK_URL=http://localhost:8096/health
 
 COPY --from=server /jellyfin /jellyfin
 COPY --from=web /jellyfin/jellyfin-web /jellyfin/jellyfin-web
-
-# realtek patch
-ENV JELLYFIN_FFMPEG="/usr/bin/ffmpeg"
 
 RUN apt update && apt install --no-install-suggests -y software-properties-common \
     && apt-add-repository non-free && apt update \
@@ -69,5 +75,11 @@ RUN mv /usr/bin/ffprobe /usr/bin/ffprobe.rtk && \
 ADD realtek/ffmpeg.tar.gz /
 
 EXPOSE 8096
-VOLUME ${JELLYFIN_MEDIA_DIR} ${JELLYFIN_DATA_DIR} ${JELLYFIN_CACHE_DIR}
-ENTRYPOINT [ "/jellyfin/jellyfin" ]
+VOLUME /cache /config
+ENTRYPOINT ["./jellyfin/jellyfin", \
+    "--datadir", "/config", \
+    "--cachedir", "/cache", \
+    "--ffmpeg", "/usr/bin/ffmpeg"]
+
+HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
+     CMD curl -Lk "${HEALTHCHECK_URL}" || exit 1
