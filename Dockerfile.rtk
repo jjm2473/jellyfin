@@ -1,85 +1,14 @@
 
-FROM jjm2473/jellyfin-server-rtk:v10.8-1 as server
-FROM jellyfin/jellyfin:10.8.1-arm64 as web
+ARG VERSION
 
-# Requires binfm_misc registration
-# https://github.com/multiarch/qemu-user-static#binfmt_misc-register
+FROM localhost:5000/jjm2473/jellyfin-rtk-cache:$VERSION
 
-FROM multiarch/qemu-user-static:x86_64-aarch64 as qemu
-FROM arm64v8/debian:stable-slim as app
-
-# https://askubuntu.com/questions/972516/debian-frontend-environment-variable
-ARG DEBIAN_FRONTEND="noninteractive"
-# http://stackoverflow.com/questions/48162574/ddg#49462622
-ARG APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
-# https://github.com/NVIDIA/nvidia-docker/wiki/Installation-(Native-GPU-Support)
-ENV NVIDIA_DRIVER_CAPABILITIES="compute,video,utility"
-
-COPY --from=qemu /usr/bin/qemu-aarch64-static /usr/bin
-
-# curl: healcheck
-RUN apt-get update && apt-get install --no-install-recommends --no-install-suggests -y \
- ffmpeg \
- libssl-dev \
- ca-certificates \
- libfontconfig1 \
- libfreetype6 \
- libomxil-bellagio0 \
- libomxil-bellagio-bin \
- locales \
- curl \
- && apt-get clean autoclean -y \
- && apt-get autoremove -y \
- && rm -rf /var/lib/apt/lists/* \
- && mkdir -p /cache /config /media \
- && chmod 777 /cache /config /media \
- && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
-
-# ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
-ENV LC_ALL en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-
-ENV HEALTHCHECK_URL=http://localhost:8096/health
-
-COPY --from=server /jellyfin /jellyfin
-COPY --from=web /jellyfin/jellyfin-web /jellyfin/jellyfin-web
-
-RUN apt update && apt install --no-install-suggests -y software-properties-common \
-    && apt-add-repository non-free && apt update \
-    && apt install -y libxcb-xfixes0 libxcb-shape0 libsndio7.0 libjack-jackd2-0 \
-    && apt install -y libfdk-aac1 libmp3lame0 libopus0 \
-    && apt install -y fonts-noto-cjk \
-    && apt-get clean autoclean -y \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# add fonts for ASS/SSA client render
-RUN apt-get update \
- && apt-get install --no-install-recommends --no-install-suggests -y wget \
- && mkdir -p /jellyfin/jellyfin-web/assets/fonts \
- && wget -O - https://github.com/jjm2473/rtd1296_prebuilt_target/releases/download/v1.0/noto.tar.gz | tar -xz -C /jellyfin/jellyfin-web/assets/fonts \
- && apt-get remove wget -y \
- && apt-get clean autoclean -y \
- && apt-get autoremove -y \
- && rm -rf /var/lib/apt/lists/*
-
-ADD realtek/openmax.tar.gz /
-ADD realtek/libffmpeg-full.tar.gz /
-ADD realtek/ffprobe.tar.gz /
+ADD ./openmax.tar.gz /
+ADD ./libffmpeg-full.tar.gz /
+ADD ./ffprobe.tar.gz /
 
 RUN mv /usr/bin/ffprobe /usr/bin/ffprobe.rtk && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg.img
 
-ADD realtek/ffmpeg.tar.gz /
-
-EXPOSE 8096
-VOLUME /cache /config
-ENTRYPOINT ["./jellyfin/jellyfin", \
-    "--datadir", "/config", \
-    "--cachedir", "/cache", \
-    "--ffmpeg", "/usr/bin/ffmpeg"]
-
-HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
-     CMD curl -Lk "${HEALTHCHECK_URL}" || exit 1
+ADD ./ffmpeg.tar.gz /
