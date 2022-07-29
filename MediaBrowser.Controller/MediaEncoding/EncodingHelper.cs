@@ -1721,7 +1721,7 @@ namespace MediaBrowser.Controller.MediaEncoding
             var request = state.BaseRequest;
 
             if (string.Equals("h264", videoStream.Codec, StringComparison.OrdinalIgnoreCase)
-                && IsColorDepth10(state))
+                && GetVideoColorBitDepth(state) != 8)
             {
                 return true;
             }
