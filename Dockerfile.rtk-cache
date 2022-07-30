@@ -7,7 +7,7 @@ FROM jjm2473/jellyfin-server-rtk:$VERSION as server
 # https://github.com/multiarch/qemu-user-static#binfmt_misc-register
 
 FROM multiarch/qemu-user-static:x86_64-aarch64 as qemu
-FROM arm64v8/debian:stable-slim as app
+FROM arm64v8/debian:buster-slim as app
 
 # https://askubuntu.com/questions/972516/debian-frontend-environment-variable
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -20,8 +20,12 @@ COPY --from=qemu /usr/bin/qemu-aarch64-static /usr/bin
 
 # curl: healcheck
 RUN sed -i 's#/debian-security stable/updates#/debian-security stable-security/updates#g' /etc/apt/sources.list && \
- apt-get update && apt-get install --no-install-recommends --no-install-suggests -y \
- ffmpeg \
+ apt-get update \
+ && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates gnupg wget apt-transport-https curl \
+ && wget -O - https://repo.jellyfin.org/jellyfin_team.gpg.key | apt-key add - \
+ && echo "deb [arch=$( dpkg --print-architecture )] https://repo.jellyfin.org/$( awk -F'=' '/^ID=/{ print $NF }' /etc/os-release ) $( awk -F'=' '/^VERSION_CODENAME=/{ print $NF }' /etc/os-release ) main" | tee /etc/apt/sources.list.d/jellyfin.list \
+ && apt-get update && apt-get install --no-install-recommends --no-install-suggests -y \
+ jellyfin-ffmpeg \
  libssl-dev \
  ca-certificates \
  libfontconfig1 \
@@ -29,7 +33,12 @@ RUN sed -i 's#/debian-security stable/updates#/debian-security stable-security/u
  libomxil-bellagio0 \
  libomxil-bellagio-bin \
  locales \
- curl \
+ software-properties-common \
+ && apt-add-repository non-free \
+ && apt-get update && apt-get install --no-install-recommends --no-install-suggests -y \
+  libxcb-xfixes0 libxcb-shape0 libsndio7.0 libjack-jackd2-0 \
+  libfdk-aac1 libmp3lame0 libopus0 \
+  fonts-noto-cjk \
  && apt-get clean autoclean -y \
  && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/* \
@@ -48,15 +57,6 @@ COPY --from=server /jellyfin /jellyfin
 COPY jellyfin-web /jellyfin/jellyfin-web
 
 # realtek patch
-
-RUN apt update && apt install --no-install-suggests -y software-properties-common \
-    && apt-add-repository non-free && apt update \
-    && apt install -y libxcb-xfixes0 libxcb-shape0 libsndio7.0 libjack-jackd2-0 \
-    && apt install -y libfdk-aac1 libmp3lame0 libopus0 \
-    && apt install -y fonts-noto-cjk \
-    && apt-get clean autoclean -y \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
 
 # add fonts for ASS/SSA client render
 RUN mkdir -p /jellyfin/jellyfin-web/assets/fonts \

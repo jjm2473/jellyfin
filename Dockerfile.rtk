@@ -3,12 +3,9 @@ ARG VERSION
 
 FROM localhost:5000/jjm2473/jellyfin-rtk-cache:$VERSION
 
+RUN ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe\
+ && ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg.img
+
 ADD ./openmax.tar.gz /
 ADD ./libffmpeg-full.tar.gz /
-ADD ./ffprobe.tar.gz /
-
-RUN mv /usr/bin/ffprobe /usr/bin/ffprobe.rtk && \
-    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe && \
-    ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg.img
-
 ADD ./ffmpeg.tar.gz /
