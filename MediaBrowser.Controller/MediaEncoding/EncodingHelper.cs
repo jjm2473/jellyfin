@@ -1721,7 +1721,8 @@ namespace MediaBrowser.Controller.MediaEncoding
             var request = state.BaseRequest;
 
             if (string.Equals("h264", videoStream.Codec, StringComparison.OrdinalIgnoreCase)
-                && GetVideoColorBitDepth(state) != 8)
+                && GetVideoColorBitDepth(state) != 8
+                && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JELLYFIN_COPY_H264_HIGH10")))
             {
                 return true;
             }
