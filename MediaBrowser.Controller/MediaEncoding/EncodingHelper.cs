@@ -931,6 +931,13 @@ namespace MediaBrowser.Controller.MediaEncoding
                 arg.Append(" -i \"").Append(state.AudioStream.Path).Append('"');
             }
 
+            // Disable auto inserted SW scaler for HW decoders in case of changed resolution.
+            var isSwDecoder = string.IsNullOrEmpty(GetHardwareVideoDecoder(state, options));
+            if (!isSwDecoder)
+            {
+                arg.Append(" -autoscale 0");
+            }
+
             return arg.ToString();
         }
 
@@ -1145,16 +1152,15 @@ namespace MediaBrowser.Controller.MediaEncoding
 
             if (state.SubtitleStream.IsExternal)
             {
-                var subtitlePath = state.SubtitleStream.Path;
                 var charsetParam = string.Empty;
 
                 if (!string.IsNullOrEmpty(state.SubtitleStream.Language))
                 {
                     var charenc = _subtitleEncoder.GetSubtitleFileCharacterSet(
-                        subtitlePath,
-                        state.SubtitleStream.Language,
-                        state.MediaSource.Protocol,
-                        CancellationToken.None).GetAwaiter().GetResult();
+                            state.SubtitleStream,
+                            state.SubtitleStream.Language,
+                            state.MediaSource,
+                            CancellationToken.None).GetAwaiter().GetResult();
 
                     if (!string.IsNullOrEmpty(charenc))
                     {
@@ -1166,7 +1172,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                 return string.Format(
                     CultureInfo.InvariantCulture,
                     "subtitles=f='{0}'{1}{2}{3}{4}{5}",
-                    _mediaEncoder.EscapeSubtitleFilterPath(subtitlePath),
+                    _mediaEncoder.EscapeSubtitleFilterPath(state.SubtitleStream.Path),
                     charsetParam,
                     alphaParam,
                     sub2videoParam,
@@ -1409,7 +1415,11 @@ namespace MediaBrowser.Controller.MediaEncoding
                     param += " -preset 7";
                 }
 
-                param += " -look_ahead 0";
+                // Only h264_qsv has look_ahead option
+                if (string.Equals(videoEncoder, "h264_qsv", StringComparison.OrdinalIgnoreCase))
+                {
+                    param += " -look_ahead 0";
+                }
             }
             else if (string.Equals(videoEncoder, "h264_nvenc", StringComparison.OrdinalIgnoreCase) // h264 (h264_nvenc)
                      || string.Equals(videoEncoder, "hevc_nvenc", StringComparison.OrdinalIgnoreCase)) // hevc (hevc_nvenc)
@@ -1447,7 +1457,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         break;
 
                     default:
-                        param += " -preset p4";
+                        param += " -preset p1";
                         break;
                 }
             }
@@ -3405,6 +3415,12 @@ namespace MediaBrowser.Controller.MediaEncoding
                         // map from d3d11va to qsv.
                         mainFilters.Add("hwmap=derive_device=qsv");
                     }
+                    else
+                    {
+                        // Insert a qsv scaler to sync the decoder surface,
+                        // msdk will passthrough this internally.
+                        mainFilters.Add("hwmap=derive_device=qsv,scale_qsv");
+                    }
                 }
 
                 // hw deint
@@ -4977,13 +4993,13 @@ namespace MediaBrowser.Controller.MediaEncoding
             // The default value of -probesize is more than enough, so leave it as is.
             var ffmpegAnalyzeDuration = _config.GetFFmpegAnalyzeDuration() ?? string.Empty;
 
-            if (!string.IsNullOrEmpty(ffmpegAnalyzeDuration))
-            {
-                analyzeDurationArgument = "-analyzeduration " + ffmpegAnalyzeDuration;
-            }
-            else if (state.MediaSource.AnalyzeDurationMs.HasValue)
+            if (state.MediaSource.AnalyzeDurationMs > 0)
             {
                 analyzeDurationArgument = "-analyzeduration " + (state.MediaSource.AnalyzeDurationMs.Value * 1000).ToString(CultureInfo.InvariantCulture);
+            }
+            else if (!string.IsNullOrEmpty(ffmpegAnalyzeDuration))
+            {
+                analyzeDurationArgument = "-analyzeduration " + ffmpegAnalyzeDuration;
             }
 
             if (!string.IsNullOrEmpty(analyzeDurationArgument))
@@ -5536,7 +5552,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                     return index;
                 }
 
-                 if (string.Equals(currentMediaStream.Path, streamToFind.Path, StringComparison.Ordinal))
+                if (string.Equals(currentMediaStream.Path, streamToFind.Path, StringComparison.Ordinal))
                 {
                     index++;
                 }
