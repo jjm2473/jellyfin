@@ -1,7 +1,14 @@
 
 ARG VERSION
 
-FROM localhost:5000/jjm2473/jellyfin-rtk-cache:$VERSION
+FROM localhost:5000/jjm2473/jellyfin-base:$VERSION
+
+ENV JELLYFIN_COPY_H264_HIGH10 1
+
+ENTRYPOINT ["./jellyfin/jellyfin", \
+    "--datadir", "/config", \
+    "--cachedir", "/cache", \
+    "--ffmpeg", "/usr/bin/ffmpeg"]
 
 RUN ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/bin/ffprobe\
  && ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/bin/ffmpeg.img

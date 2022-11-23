@@ -1,7 +1,7 @@
 
 ARG VERSION
 
-FROM jjm2473/jellyfin-server-rtk:$VERSION as server
+FROM jjm2473/jellyfin-server:$VERSION as server
 
 # Requires binfm_misc registration
 # https://github.com/multiarch/qemu-user-static#binfmt_misc-register
@@ -56,8 +56,6 @@ ENV HEALTHCHECK_URL=http://localhost:8096/health
 COPY --from=server /jellyfin /jellyfin
 COPY jellyfin-web /jellyfin/jellyfin-web
 
-# realtek patch
-
 # add fonts for ASS/SSA client render
 RUN mkdir -p /jellyfin/jellyfin-web/assets/fonts \
     && curl -L https://github.com/jjm2473/rtd1296_prebuilt_target/releases/download/v1.0/noto.tar.gz | tar -xz -C /jellyfin/jellyfin-web/assets/fonts
@@ -67,7 +65,7 @@ VOLUME /cache /config
 ENTRYPOINT ["./jellyfin/jellyfin", \
     "--datadir", "/config", \
     "--cachedir", "/cache", \
-    "--ffmpeg", "/usr/bin/ffmpeg"]
+    "--ffmpeg", "/usr/lib/jellyfin-ffmpeg/ffmpeg"]
 
 HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
      CMD curl -Lk "${HEALTHCHECK_URL}" || exit 1
