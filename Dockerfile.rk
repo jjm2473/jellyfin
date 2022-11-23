@@ -1,7 +1,7 @@
 
 ARG VERSION
 
-FROM localhost:5000/jjm2473/jellyfin-base:$VERSION
+FROM jjm2473/jellyfin-base:$VERSION
 
 ENTRYPOINT ["./jellyfin/jellyfin", \
     "--datadir", "/config", \
