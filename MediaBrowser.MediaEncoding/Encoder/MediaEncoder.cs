@@ -56,6 +56,7 @@ namespace MediaBrowser.MediaEncoding.Encoder
         private readonly IConfiguration _config;
         private readonly IServerConfigurationManager _serverConfig;
         private readonly string _startupOptionFFmpegPath;
+        private readonly string _startupOptionFontsDir;
 
         private readonly SemaphoreSlim _thumbnailResourcePool = new SemaphoreSlim(2, 2);
 
@@ -110,6 +111,8 @@ namespace MediaBrowser.MediaEncoding.Encoder
             _config = config;
             _serverConfig = serverConfig;
             _startupOptionFFmpegPath = config.GetValue<string>(Controller.Extensions.ConfigurationExtensions.FfmpegPathKey) ?? string.Empty;
+
+            _startupOptionFontsDir = config.GetValue<string>(Controller.Extensions.ConfigurationExtensions.FontsDirKey) ?? string.Empty;
 
             _jsonSerializerOptions = new JsonSerializerOptions(JsonDefaults.Options);
             _jsonSerializerOptions.Converters.Add(new JsonBoolStringConverter());
