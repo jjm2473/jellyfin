@@ -40,6 +40,11 @@ namespace MediaBrowser.Controller.Extensions
         public const string FfmpegPathKey = "ffmpeg";
 
         /// <summary>
+        /// The key for the Fonts dir option.
+        /// </summary>
+        public const string FontsDirKey = "fonts:dir";
+
+        /// <summary>
         /// The key for a setting that indicates whether playlists should allow duplicate entries.
         /// </summary>
         public const string PlaylistsAllowDuplicatesKey = "playlists:allowDuplicates";
