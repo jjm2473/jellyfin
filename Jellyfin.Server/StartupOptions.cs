@@ -68,6 +68,13 @@ namespace Jellyfin.Server
         public string? PublishedServerUrl { get; set; }
 
         /// <summary>
+        /// Gets or sets the path to the fonts directory.
+        /// </summary>
+        /// <value>The path to the fonts directory.</value>
+        [Option('c', "fontsdir", Required = false, HelpText = "Path to use for fonts data on ASS rendering.")]
+        public string? FontsDir { get; set; }
+
+        /// <summary>
         /// Gets the command line options as a dictionary that can be used in the .NET configuration system.
         /// </summary>
         /// <returns>The configuration dictionary.</returns>
@@ -88,6 +95,11 @@ namespace Jellyfin.Server
             if (FFmpegPath is not null)
             {
                 config.Add(FfmpegPathKey, FFmpegPath);
+            }
+
+            if (FontsDir is not null)
+            {
+                config.Add(FontsDirKey, FontsDir);
             }
 
             return config;
