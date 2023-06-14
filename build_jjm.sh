@@ -21,6 +21,6 @@ VERSION=v10.8
 docker build --pull -t jjm2473/jellyfin-rtk:4.9-$VERSION --build-arg VERSION=$VERSION -f Dockerfile.rtk realtek || exit 1
 
 # build rockchip image
-[ -f rockchip/Dockerfile.sample ] || ( mkdir rockchip && curl -L https://github.com/jjm2473/ffmpeg-rk/releases/download/v1.0/jellyfin-rkmpp-ffmpeg_4.4-1.git.tar | tar -x -C rockchip ) || exit 1
+[ -f rockchip/Dockerfile.sample ] || ( mkdir rockchip && curl -L https://github.com/jjm2473/ffmpeg-rk/releases/download/v1.0/jellyfin-rkmpp-ffmpeg_5.1-1.git.tar | tar -x -C rockchip ) || exit 1
 
 docker build --pull -t jjm2473/jellyfin-mpp:$VERSION --build-arg VERSION=$VERSION -f Dockerfile.rk rockchip || exit 1
