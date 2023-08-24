@@ -1,71 +1,10 @@
 
 ARG VERSION
 
-FROM jjm2473/jellyfin-server:$VERSION as server
+FROM jjm2473/jellyfin-server:$VERSION as app
 
-# Requires binfm_misc registration
-# https://github.com/multiarch/qemu-user-static#binfmt_misc-register
-
-FROM multiarch/qemu-user-static:x86_64-aarch64 as qemu
-FROM arm64v8/debian:buster-slim as app
-
-# https://askubuntu.com/questions/972516/debian-frontend-environment-variable
-ARG DEBIAN_FRONTEND="noninteractive"
-# http://stackoverflow.com/questions/48162574/ddg#49462622
-ARG APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
-# https://github.com/NVIDIA/nvidia-docker/wiki/Installation-(Native-GPU-Support)
-ENV NVIDIA_DRIVER_CAPABILITIES="compute,video,utility"
-
-COPY --from=qemu /usr/bin/qemu-aarch64-static /usr/bin
-
-# curl: healcheck
-RUN sed -i 's#/debian-security stable/updates#/debian-security stable-security/updates#g' /etc/apt/sources.list && \
- apt-get update \
- && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates gnupg wget apt-transport-https curl \
- && wget -O - https://repo.jellyfin.org/jellyfin_team.gpg.key | apt-key add - \
- && echo "deb [arch=$( dpkg --print-architecture )] https://repo.jellyfin.org/$( awk -F'=' '/^ID=/{ print $NF }' /etc/os-release ) $( awk -F'=' '/^VERSION_CODENAME=/{ print $NF }' /etc/os-release ) main" | tee /etc/apt/sources.list.d/jellyfin.list \
- && apt-get update && apt-get install --no-install-recommends --no-install-suggests -y \
- jellyfin-ffmpeg \
- libssl-dev \
- ca-certificates \
- libfontconfig1 \
- libfreetype6 \
- libomxil-bellagio0 \
- libomxil-bellagio-bin \
- locales \
- software-properties-common \
- && apt-add-repository non-free \
- && apt-get update && apt-get install --no-install-recommends --no-install-suggests -y \
-  libxcb-xfixes0 libxcb-shape0 libsndio7.0 libjack-jackd2-0 \
-  libfdk-aac1 libmp3lame0 libopus0 \
-  fonts-noto-cjk \
- && apt-get clean autoclean -y \
- && apt-get autoremove -y \
- && rm -rf /var/lib/apt/lists/* \
- && mkdir -p /cache /config /media \
- && chmod 777 /cache /config /media \
- && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
-
-# ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
-ENV LC_ALL en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-
-ENV HEALTHCHECK_URL=http://localhost:8096/health
-
-COPY --from=server /jellyfin /jellyfin
 COPY jellyfin-web /jellyfin/jellyfin-web
 
 # add fonts for ASS/SSA client render
 RUN mkdir -p /jellyfin/jellyfin-web/assets/fonts \
     && curl -L https://github.com/jjm2473/rtd1296_prebuilt_target/releases/download/v1.0/noto.tar.gz | tar -xz -C /jellyfin/jellyfin-web/assets/fonts
-
-EXPOSE 8096
-VOLUME /cache /config
-ENTRYPOINT ["./jellyfin/jellyfin", \
-    "--datadir", "/config", \
-    "--cachedir", "/cache", \
-    "--ffmpeg", "/usr/lib/jellyfin-ffmpeg/ffmpeg"]
-
-HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
-     CMD curl -Lk "${HEALTHCHECK_URL}" || exit 1

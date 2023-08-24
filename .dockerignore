@@ -12,3 +12,9 @@ ci/
 realtek/
 common/
 rockchip/
+Dockerfile.base
+Dockerfile.rk
+Dockerfile.rtk
+Dockerfile.runtime
+Dockerfile.server
+build_jjm.sh

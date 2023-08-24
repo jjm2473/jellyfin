@@ -1,0 +1,25 @@
+
+ARG VERSION
+
+FROM jjm2473/jellyfin-server-build:$VERSION as server
+
+FROM jjm2473/jellyfin-runtime:v1 as app
+
+# ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+ENV LC_ALL en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+
+ENV HEALTHCHECK_URL=http://localhost:8096/health
+
+COPY --from=server /jellyfin /jellyfin
+
+EXPOSE 8096
+VOLUME /cache /config
+ENTRYPOINT ["./jellyfin/jellyfin", \
+    "--datadir", "/config", \
+    "--cachedir", "/cache", \
+    "--ffmpeg", "/usr/lib/jellyfin-ffmpeg/ffmpeg"]
+
+HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
+     CMD curl -Lk "${HEALTHCHECK_URL}" || exit 1
