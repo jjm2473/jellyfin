@@ -22,20 +22,21 @@ namespace MediaBrowser.Model.Configuration
             EnableTonemapping = false;
             EnableVppTonemapping = false;
             TonemappingAlgorithm = "bt2390";
+            TonemappingMode = "auto";
             TonemappingRange = "auto";
             TonemappingDesat = 0;
-            TonemappingThreshold = 0.8;
             TonemappingPeak = 100;
             TonemappingParam = 0;
-            VppTonemappingBrightness = 0;
-            VppTonemappingContrast = 1.2;
+            VppTonemappingBrightness = 16;
+            VppTonemappingContrast = 1;
             H264Crf = 23;
             H265Crf = 28;
             DeinterlaceDoubleRate = false;
             DeinterlaceMethod = "yadif";
             EnableDecodingColorDepth10Hevc = true;
             EnableDecodingColorDepth10Vp9 = true;
-            EnableEnhancedNvdecDecoder = false;
+            // Enhanced Nvdec or system native decoder is required for DoVi to SDR tone-mapping.
+            EnableEnhancedNvdecDecoder = true;
             PreferSystemNativeHwDecoder = true;
             EnableIntelLowPowerH264HwEncoder = false;
             EnableIntelLowPowerHevcHwEncoder = false;
@@ -82,11 +83,11 @@ namespace MediaBrowser.Model.Configuration
 
         public string TonemappingAlgorithm { get; set; }
 
+        public string TonemappingMode { get; set; }
+
         public string TonemappingRange { get; set; }
 
         public double TonemappingDesat { get; set; }
-
-        public double TonemappingThreshold { get; set; }
 
         public double TonemappingPeak { get; set; }
 

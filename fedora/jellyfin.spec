@@ -7,7 +7,7 @@
 %endif
 
 Name:           jellyfin
-Version:        10.8.7
+Version:        10.8.10
 Release:        1%{?dist}
 Summary:        The Free Software Media System
 License:        GPLv2
@@ -139,6 +139,9 @@ getent group jellyfin >/dev/null || groupadd -r jellyfin
 getent passwd jellyfin >/dev/null || \
     useradd -r -g jellyfin -d %{_sharedstatedir}/jellyfin -s /sbin/nologin \
     -c "Jellyfin default user" jellyfin
+# Add jellyfin to the render and video groups for hwa.
+[ ! -z "$(getent group render)" ] && usermod -aG render jellyfin >/dev/null 2>&1
+[ ! -z "$(getent group video)" ] && usermod -aG video jellyfin >/dev/null 2>&1
 exit 0
 
 %post server
@@ -176,6 +179,12 @@ fi
 %systemd_postun_with_restart jellyfin.service
 
 %changelog
+* Sun Apr 23 2023 Jellyfin Packaging Team <packaging@jellyfin.org>
+- New upstream version 10.8.10; release changelog at https://github.com/jellyfin/jellyfin/releases/tag/v10.8.10
+* Sun Jan 22 2023 Jellyfin Packaging Team <packaging@jellyfin.org>
+- New upstream version 10.8.9; release changelog at https://github.com/jellyfin/jellyfin/releases/tag/v10.8.9
+* Tue Nov 29 2022 Jellyfin Packaging Team <packaging@jellyfin.org>
+- New upstream version 10.8.8; release changelog at https://github.com/jellyfin/jellyfin/releases/tag/v10.8.8
 * Mon Oct 31 2022 Jellyfin Packaging Team <packaging@jellyfin.org>
 - New upstream version 10.8.7; release changelog at https://github.com/jellyfin/jellyfin/releases/tag/v10.8.7
 * Fri Oct 28 2022 Jellyfin Packaging Team <packaging@jellyfin.org>

@@ -13,6 +13,7 @@ using Jellyfin.Api.Constants;
 using Jellyfin.Api.Helpers;
 using Jellyfin.Api.Models.PlaybackDtos;
 using Jellyfin.Api.Models.StreamingDtos;
+using Jellyfin.Extensions;
 using Jellyfin.MediaEncoding.Hls.Playlist;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Configuration;
@@ -21,6 +22,7 @@ using MediaBrowser.Controller.Dlna;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Controller.Net;
+using MediaBrowser.MediaEncoding.Encoder;
 using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Dlna;
 using MediaBrowser.Model.IO;
@@ -1662,8 +1664,8 @@ namespace Jellyfin.Api.Controllers
                 startNumber.ToString(CultureInfo.InvariantCulture),
                 baseUrlParam,
                 isEventPlaylist ? "event" : "vod",
-                outputTsArg,
-                outputPath).Trim();
+                EncodingUtils.NormalizePath(outputTsArg),
+                EncodingUtils.NormalizePath(outputPath)).Trim();
         }
 
         /// <summary>
@@ -1693,7 +1695,7 @@ namespace Jellyfin.Api.Controllers
 
                 audioTranscodeParams += "-acodec " + audioCodec;
 
-                if (state.OutputAudioBitrate.HasValue)
+                if (state.OutputAudioBitrate.HasValue && !EncodingHelper.LosslessAudioCodecs.Contains(state.ActualOutputAudioCodec, StringComparison.OrdinalIgnoreCase))
                 {
                     audioTranscodeParams += " -ab " + state.OutputAudioBitrate.Value.ToString(CultureInfo.InvariantCulture);
                 }
@@ -1712,11 +1714,13 @@ namespace Jellyfin.Api.Controllers
                 return audioTranscodeParams;
             }
 
-            // flac and opus are experimental in mp4 muxer
+            // dts, flac, opus and truehd are experimental in mp4 muxer
             var strictArgs = string.Empty;
-
-            if (string.Equals(state.ActualOutputAudioCodec, "flac", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(state.ActualOutputAudioCodec, "opus", StringComparison.OrdinalIgnoreCase))
+            var actualOutputAudioCodec = state.ActualOutputAudioCodec;
+            if (string.Equals(actualOutputAudioCodec, "flac", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(actualOutputAudioCodec, "opus", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(actualOutputAudioCodec, "dts", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(actualOutputAudioCodec, "truehd", StringComparison.OrdinalIgnoreCase))
             {
                 strictArgs = " -strict -2";
             }
@@ -1745,8 +1749,7 @@ namespace Jellyfin.Api.Controllers
             }
 
             var bitrate = state.OutputAudioBitrate;
-
-            if (bitrate.HasValue)
+            if (bitrate.HasValue && !EncodingHelper.LosslessAudioCodecs.Contains(actualOutputAudioCodec, StringComparison.OrdinalIgnoreCase))
             {
                 args += " -ab " + bitrate.Value.ToString(CultureInfo.InvariantCulture);
             }
@@ -1841,7 +1844,11 @@ namespace Jellyfin.Api.Controllers
                 // args += " -mixed-refs 0 -refs 3 -x264opts b_pyramid=0:weightb=0:weightp=0";
 
                 // video processing filters.
-                args += _encodingHelper.GetVideoProcessingFilterParam(state, _encodingOptions, codec);
+                var videoProcessParam = _encodingHelper.GetVideoProcessingFilterParam(state, _encodingOptions, codec);
+
+                var negativeMapArgs = _encodingHelper.GetNegativeMapArgsByFilters(state, videoProcessParam);
+
+                args = negativeMapArgs + args + videoProcessParam;
 
                 // -start_at_zero is necessary to use with -ss when seeking,
                 // otherwise the target position cannot be determined.
