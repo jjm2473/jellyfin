@@ -3,6 +3,8 @@ ARG VERSION
 
 FROM jjm2473/jellyfin-base:$VERSION
 
+ENV JELLYFIN_SUB_UNBURN 1
+
 ENTRYPOINT ["./jellyfin/jellyfin", \
     "--datadir", "/config", \
     "--cachedir", "/cache", \

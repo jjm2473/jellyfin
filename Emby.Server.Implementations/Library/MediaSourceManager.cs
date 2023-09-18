@@ -86,6 +86,10 @@ namespace Emby.Server.Implementations.Library
         {
             var list = _itemRepo.GetMediaStreams(query);
 
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JELLYFIN_SUB_UNBURN"))) {
+                list.RemoveAll(stream => stream.Type == MediaStreamType.Subtitle && !stream.IsTextSubtitleStream);
+            }
+
             foreach (var stream in list)
             {
                 stream.SupportsExternalStream = StreamSupportsExternalStream(stream);

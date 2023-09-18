@@ -4,6 +4,7 @@ ARG VERSION
 FROM jjm2473/jellyfin-base:$VERSION
 
 ENV JELLYFIN_COPY_H264_HIGH10 1
+ENV JELLYFIN_SUB_UNBURN 1
 
 ENTRYPOINT ["./jellyfin/jellyfin", \
     "--datadir", "/config", \

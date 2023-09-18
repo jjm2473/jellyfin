@@ -63,3 +63,13 @@ if [[ $STAGE = 6 ]]; then
     docker push jjm2473/jellyfin-rtk:4.9-$DATE
     docker push jjm2473/jellyfin-mpp:$DATE
 fi
+
+# push test
+if [[ $STAGE = 7 ]]; then
+    docker tag jjm2473/jellyfin-rtk:4.9-$VERSION jjm2473/jellyfin-rtk:4.9-$VERSION-test
+    docker tag jjm2473/jellyfin-mpp:$VERSION jjm2473/jellyfin-mpp:$VERSION-test
+    docker push jjm2473/jellyfin-rtk:4.9-$VERSION-test || exit 1
+    echo "pushed jjm2473/jellyfin-rtk:4.9-$VERSION-test"
+    docker push jjm2473/jellyfin-mpp:$VERSION-test || exit 1
+    echo "pushed jjm2473/jellyfin-mpp:$VERSION-test"
+fi
